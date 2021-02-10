@@ -39,6 +39,7 @@ const MENUITEMS = [
           ]
       },
       {state: 'about-us', name: 'About', type: 'link'},
+      {state: 'user-profile', name: 'Profile', type: 'link'},
       {state: 'contact-us', name: 'Contact', type: 'link'}
     ]
   },
