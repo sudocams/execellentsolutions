@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewInit, ViewEncapsulation } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { SessionService} from "../session/session.service";
+import { SessionService} from "../session.service";
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -13,7 +13,8 @@ import { Subscription } from 'rxjs';
 export class SignUpComponent implements OnInit{
   isLoading = false;
   private authstatusSub: Subscription;
-  constructor(public authService: SessionService)
+  constructor( private router: Router, private authservice: SessionService){}
+
 
   SignupForm = new FormGroup({
     username: new FormControl('', [Validators.required]),
@@ -25,7 +26,6 @@ export class SignUpComponent implements OnInit{
     passwordConfirm : new FormControl('',[Validators.required, Validators.minLength(7), Validators.maxLength(17)])
   });
 
-   constructor( private router: Router, authservice: SessionService){}
 
    ngOnInit(){
      this.authservice = this.authservice.getAuthStatus()
@@ -41,7 +41,7 @@ export class SignUpComponent implements OnInit{
        return;
      }
      this.isLoading = true;
-     this.authservice.createUser(this.SignupForm.valid);
+     this.authservice.createUser(this.SignupForm.value);
      this.router.navigateByUrl('/session/login');
    }
 

@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewInit, ViewEncapsulation } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { SessionService} from "../session/session.service";
+import { SessionService} from "../session.service";
 import { Subscription } from 'rxjs';
 
 @Component({
