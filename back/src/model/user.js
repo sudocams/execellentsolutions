@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema({
     },
     phone:{
         type: Number,
-        maxlength: [20, 'phone cannot be longer than 10 characters'],
+        maxlength: [10, 'phone cannot be longer than 10 characters'],
     },
     location:{
         type:String,

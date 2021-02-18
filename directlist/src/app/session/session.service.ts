@@ -1,81 +1,141 @@
 import { Injectable } from '@angular/core';
 import { HttpClient} from '@angular/common/http';
-import { BehaviorSubject } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { environment} from 'src/environments/environment'
+import { Router } from '@angular/router'
+import { Subject } from 'rxjs'
+import { AuthData } from "./auth-data"
 
-interface UserNameAvailable{
-  available: boolean;
-}
-interface SignUpCredentials{
-  username: string;
-  password: string;
-  passwordConfirmation: string;
-}
-interface signinCredentials{
-  email: string;
-  password: string;
-}
-interface signUpResponse{
-  username: string;
-}
 
-interface signInResponse{
-  password: string;
-  username: string;
-  email: string;
-}
-interface SignedInResponse{
-  authenticated: boolean;
-  username: string;
-}
+const BACKEND_URL = environment.userUrl + "/user"
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class SessionService {
 
-  constructor( private http: HttpClient) { }
-  rootUrl ="https://api/";
-  username ='';
-  signin$ = new BehaviorSubject(null);
+  private isAuthenticated = false;
+  private token: string;
+  private tokenTimer:any;
+  private userId: string;
+  private authStatusListener = new Subject<boolean>();
 
-  userNameAvilable(userName:string){
-    return this.http.post<UserNameAvailable>(this.rootUrl + '/auth/username',{
-      username: userName
-    });
+
+  constructor( private http: HttpClient, private router: Router) { }
+
+  getToken(){
+    return this.token;
   }
 
-  signUp(credentials: SignUpCredentials){
-    return this.http.post<signUpResponse>(this.rootUrl + 'auth/signup', credentials).
-    pipe(tap((response)=>{
-      this.signin$.next(true);
-      this.username = response.username;
-    }),);
+  getAuthStatus(){
+    return this.authStatusListener.asObservable();
   }
-  checkAuth(){
-    return this.http.get<SignedInResponse>(this.rootUrl + '/auth/signed').pipe(
-      tap(({authenticated, username})=>{
-        this.signin$.next(authenticated);
-        this.username = username;
-      })
+
+  getUserId(){
+    return this.userId;
+  }
+
+  getIsAuth(){
+    return this.isAuthenticated;
+  }
+
+  createUser(email: string, password:string){
+    const authData:AuthData = {email:email, password:password};
+    return this.http.post(BACKEND_URL + "/signup", authData).subscribe(
+      ()=>{
+        this.router.navigate(["/"]);
+      },
+      (error)=>{
+        this.authStatusListener.next(false);
+      });
+  }
+
+  login(email:string, password:string){
+    const authData: AuthData ={email:email, password:password};
+
+    this.http.post<{token: string; expiresIn: number; userId:string}>(
+      BACKEND_URL + "/login", authData
+    ).subscribe(
+      (response)=>{
+        const token = response.token;
+        this.token = token;
+        if(token){
+          const expiresInDuration = response.expiresIn;
+          this.setAuthTimer(expiresInDuration);
+          this.isAuthenticated = true;
+          this.userId = response.userId;
+          this.authStatusListener.next(true);
+          const now = new Date();
+          const expirationDate = new Date(
+            now.getTime() + expiresInDuration * 1000
+          );
+          this.saveAuthData(token, expirationDate, this.userId);
+          this.router.navigate(["/"]);
+        }
+      },
+      (error)=>{
+        this.authStatusListener.next(false);
+      }
     );
   }
 
-  Signout(){
-    return this.http.post(this.rootUrl + '/auth/signout', {}).pipe(
-      tap(()=>{
-        this.signin$.next(false);
-      })
-    )
+  autoAuthUser(){
+    const authInfo = this.getAuthData();
+    if(!authInfo){
+      return;
+    }
+    const now = new Date();
+    const expiresIn = authInfo.expirationDate.getTime() - now.getTime();
+    if(expiresIn > 0){
+      this.token = authInfo.token;
+      this.isAuthenticated = true;
+      this.userId = authInfo.userId;
+      this.setAuthTimer(expiresIn /1000);
+      this.authStatusListener.next(true);
+    }
   }
 
-  signin(newCredentials:signinCredentials){
-    return this.http.post<signInResponse>(this.rootUrl +'/auth/signin', newCredentials).pipe(
-      tap((response)=>{
-        this.signin$.next(true);
-        this.username = response.username;
-      })
-    );
+  logout(){
+    this.token = null;
+    this.isAuthenticated = false;
+    clearTimeout(this.tokenTimer)
+    this.authStatusListener.next(false);
+    this.clearAuthData();
+    this.userId = null;
+    this.router.navigate(["/"])
+  }
+
+  private setAuthTimer(duration: number){
+    this.tokenTimer = setTimeout(()=>{
+      this.logout();
+
+    }, duration * 1000)
+  }
+
+  private saveAuthData(token: string, expirationDate: Date, userId:string){
+    localStorage.setItem("token", token);
+    localhost.setItem("expiration", expirationDate.toIsoString());
+    localStorage.setItem("userId", userId)
+  }
+
+  private clearAuthData(){
+    localStorage.removeItem("token");
+    localStorage.removeItem("expiration");
+    localStorage.removeItem("userId");
+  }
+
+  private getAuthData(){
+    const token = localStorage.getItem("token");
+    const expirationDate = localStorage.getItem("expiration");
+    const userId = localStorage.getItem("userId");
+
+    if(!token || !expirationDate){
+      return;
+    }
+    return{
+      token:token, 
+      expirationDate: new Date(expirationDate),
+      userId: userId,
+    };
   }
 
 }

@@ -20,7 +20,7 @@ const MENUITEMS = [
   },
 
   {
-    state: 'posts',
+    state: 'post',
     name: 'Order Now',
     type: 'link',
   },

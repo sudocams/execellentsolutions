@@ -1,6 +1,8 @@
 import { Component, OnInit, AfterViewInit, ViewEncapsulation } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { SessionService} from "../session/session.service";
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'login',
@@ -10,30 +12,44 @@ import { Router } from '@angular/router';
 })
 export class LoginComponent implements OnInit{
 
-   constructor(private router: Router){}
+  private authStatusSub: Subscription;
+  isLoading = false;
 
-   ngOnInit(): void{}
+   constructor(private router: Router, private authservice: SessionService){}
 
-   ngAfterViewInit()
-   {
-      
+   authForm = new FormGroup({
+    email: new FormControl('', [Validators.required]),
+    
+    password : new FormControl('',[Validators.required, Validators.minLength(7), Validators.maxLength(17)])
+  });
+
+   ngOnInit(){
+    this.authStatusSub = this.authservice.getAuthStatus()
+    .subscribe((authstatus)=>{
+      this.isLoading = false;
+    })
    }
+
+   ngAfterViewInit(){}
 
    btnClick(){
      this.router.navigateByUrl('/session/sign-up');
    }
 
    onSubmit(){
-     this.router.navigateByUrl('/tutors/questions')
+    if(this.authForm.invalid){
+      return;
+    }
+    this.isLoading = true;
+    this.authservice.login(this.authForm.value);
+     this.router.navigateByUrl('/tutors/questions');
    }
 
-   authForm = new FormGroup({
-     email: new FormControl('', [Validators.required]),
-     
-     password : new FormControl('',[Validators.required, Validators.minLength(7), Validators.maxLength(17)])
-   });
-   
 
+   ngOnDestroy(){
+     this.authStatusSub.unsubscribe();
+   }
+   
 };
 
 
